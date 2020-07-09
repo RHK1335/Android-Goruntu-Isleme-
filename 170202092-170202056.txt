@@ -1,0 +1,433 @@
+package com.example.yazlab3;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.Manifest;
+import android.app.ProgressDialog;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.MediaStore;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.Toast;
+
+import com.example.yazlab3.Kontrol.Internet;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.ml.vision.FirebaseVision;
+import com.google.firebase.ml.vision.cloud.FirebaseVisionCloudDetectorOptions;
+import com.google.firebase.ml.vision.common.FirebaseVisionImage;
+import com.google.firebase.ml.vision.label.FirebaseVisionImageLabel;
+import com.google.firebase.ml.vision.label.FirebaseVisionImageLabeler;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.OnProgressListener;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
+
+import java.io.File;
+import java.util.List;
+import java.util.UUID;
+
+public class MainActivity extends AppCompatActivity {
+    Button ImageBtn;
+    Button CamBtn;
+    Button Segman;
+    Button Sıkıstırma;
+    ImageView ImageView;
+    Uri imageUri;
+   private StorageReference mStorageRef;
+    static final int CAMERA=33;
+    static final int SELECT_IMAGE=10;
+    static final int MY_CAMERA_PERMISSION_CODE=20;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        mStorageRef = FirebaseStorage.getInstance().getReference();
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        ImageBtn=findViewById(R.id.button);
+        ImageView=findViewById(R.id.imageView);
+        Sıkıstırma=findViewById(R.id.button2);
+        Segman=findViewById(R.id.button3);
+        ImageBtn.setOnClickListener(new View.OnClickListener(){
+
+            public void onClick(View view){
+               Intent intent =new Intent(Intent.ACTION_GET_CONTENT)  ;
+                intent.setType("image/*");
+                startActivityForResult(intent ,SELECT_IMAGE);
+            }
+
+        });
+        CamBtn=(Button)findViewById(R.id.button1);
+
+        CamBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+
+                    if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
+                    {
+                        requestPermissions(new String[]{Manifest.permission.CAMERA}, MY_CAMERA_PERMISSION_CODE);
+
+                    }
+                    else
+                    {
+                        Intent kamera=new Intent(MediaStore.ACTION_IMAGE_CAPTURE); // Resim çekme isteği ve activity başlatılıp id'si tanımlandı
+                          startActivityForResult(kamera,CAMERA);
+                    }
+                }
+
+
+            }
+        });
+    }
+
+
+
+
+
+    public void up(View view){
+        Intent intent=new Intent(getApplicationContext(),ImageActivity.class);
+        startActivity(intent);
+        uploadFile();
+    }
+
+
+        public void yeni(View view){
+
+            Intent intent=new Intent(getApplicationContext(),ImageActivity.class);
+            startActivity(intent);
+        }
+
+    private void uploadFile(){
+
+    if (imageUri!=null){
+
+        final ProgressDialog progressDialog=new ProgressDialog(this);
+        progressDialog.setTitle("Uploading...");
+        progressDialog.show();
+        StorageReference ref=mStorageRef.child("images/"+ UUID.randomUUID().toString());
+        ref.putFile(imageUri)
+                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        progressDialog.dismiss();
+                        Toast.makeText(MainActivity.this,"Uploaded",Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        progressDialog.dismiss();
+                        Toast.makeText(MainActivity.this,"Failed"+e.getMessage(),Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onProgress(UploadTask.TaskSnapshot taskSnapshot) {
+                        double progress=(100.0*taskSnapshot.getBytesTransferred()/taskSnapshot.getTotalByteCount());
+                        progressDialog.setMessage("Uploaded"+(int)progress+"%");
+                    }
+                });
+
+
+    }
+
+
+
+
+
+
+
+
+    }
+
+
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+
+                   if(requestCode==CAMERA && resultCode==RESULT_OK){
+                Bitmap image=(Bitmap)data.getExtras().get("data");//Çekilen resim id olarak bitmap şeklinde alındı ve imageview'e atandı
+                 ImageView resim= (ImageView)findViewById(R.id.imageView);
+                resim.setImageBitmap(image);
+
+    }
+           if (requestCode==SELECT_IMAGE && resultCode==RESULT_OK){
+
+               imageUri=data.getData();
+               ImageView.setImageURI(imageUri);
+           }else if (requestCode==SELECT_IMAGE && resultCode==RESULT_CANCELED){
+              // Toast.makeText(context:this, text:"İşlem İptal Edildi",Toast.LENGTH_LONG).show());
+
+    }
+}}
+
+
+
+-------------------------------------------------------------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <Button
+        android:id="@+id/button"
+        android:layout_width="111dp"
+        android:layout_height="87dp"
+        android:text="Galeri"
+        android:visibility="visible"
+        app:layout_constraintBottom_toTopOf="@+id/button2"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.162"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imageView"
+        app:layout_constraintVertical_bias="0.098"
+        tools:visibility="visible" />
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="311dp"
+        android:layout_height="289dp"
+        android:contentDescription="TODO"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.506"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.083"
+        tools:srcCompat="@tools:sample/avatars"
+        tools:visibility="visible" />
+
+    <Button
+        android:id="@+id/button1"
+        android:layout_width="111dp"
+        android:layout_height="87dp"
+        android:text="Kamera"
+        android:visibility="visible"
+        app:layout_constraintBottom_toTopOf="@+id/button3"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.755"
+        app:layout_constraintStart_toEndOf="@+id/button"
+        app:layout_constraintTop_toBottomOf="@+id/imageView"
+        app:layout_constraintVertical_bias="0.094"
+        tools:visibility="visible" />
+
+    <Button
+        android:id="@+id/button2"
+        android:layout_width="180dp"
+        android:layout_height="150dp"
+        android:onClick="up"
+        android:text="Sıkıstırma"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/button3"
+        app:layout_constraintHorizontal_bias="0.046"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imageView"
+        app:layout_constraintVertical_bias="1.0" />
+
+    <Button
+        android:id="@+id/button3"
+        android:layout_width="180dp"
+        android:layout_height="150dp"
+        android:onClick="yeni"
+        android:text="Segmantasyon"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.982"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imageView"
+        app:layout_constraintVertical_bias="1.0" />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+
+----------------------------------------------------------------
+
+
+package com.example.yazlab3;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.os.Bundle;
+
+public class ImageActivity extends AppCompatActivity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_image);
+    }
+}
+
+
+---------------------------------
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ImageActivity">
+
+    <ImageView
+        android:id="@+id/imageView2"
+        android:layout_width="341dp"
+        android:layout_height="348dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.104"
+        tools:srcCompat="@tools:sample/avatars[2]"
+        android:contentDescription="TODO" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+
+-------------------------
+
+
+package com.example.yazlab3.Kontrol;
+
+
+import android.os.AsyncTask;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+
+public class Internet extends AsyncTask<Void,Void,Boolean> {
+
+
+    public interface Consumer{
+
+    void accept(boolean internet);
+
+    }
+    Consumer consumer;
+    public Internet(Consumer consumer) {
+
+        this.consumer=consumer;
+        execute();
+    }
+
+    @Override
+    protected Boolean doInBackground(Void... voids) {
+        try {
+            Socket socket=new Socket();
+            socket.connect(new InetSocketAddress("google.com",80),1500);
+            socket.close();
+            return true;
+
+        } catch (Exception e) {
+
+            return false;
+        }
+
+
+    }
+
+    @Override
+    protected void onPostExecute(Boolean aBoolean) {
+        super.onPostExecute(aBoolean);
+        consumer.accept(aBoolean);
+
+    }
+}
+
+
+-------------------------
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.yazlab3">
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <uses-feature android:name="android.hardware.Camera" />
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <activity android:name=".ImageActivity"></activity>
+        <activity android:name=".MainActivity">
+            <meta-data
+                android:name="com.google.firebase.ml.vision.DEPENDENCIES"
+                android:value="label" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+
+    </application>
+
+</manifest>
+
+
+
+-----------------------------
+
+
+apply plugin: 'com.android.application'
+apply plugin: 'com.google.gms.google-services'
+
+android {
+    compileSdkVersion 29
+    buildToolsVersion "29.0.2"
+    defaultConfig {
+        applicationId "com.example.yazlab3"
+        minSdkVersion 28
+        targetSdkVersion 29
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    implementation 'com.google.android.material:material:1.0.0'
+    implementation 'com.google.firebase:firebase-database:19.2.0'
+    implementation 'com.google.firebase:firebase-ml-vision:24.0.1'
+    implementation 'com.google.firebase:firebase-ml-vision-image-label-model:19.0.0'
+    implementation 'com.google.firebase:firebase-storage:19.1.0'
+    implementation 'com.wonderkiln:camerakit:0.13.1'
+    implementation 'com.google.firebase:firebase-core:17.2.1'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+}
+
